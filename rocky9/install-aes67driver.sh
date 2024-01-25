@@ -49,7 +49,7 @@ sed -i 's/\.\.\/common/common/g' driver/*
 mkdir -p build/usr/src/ravenna-alsa-lkm-1.1.93/common
 
 # Download dkms.conf file from AUR source and set correct version
-curl -o dkms.conf -LO https://aur.archlinux.org/cgit/aur.git/plain/dkms.conf?h=ravenna-alsa-lkm-dkms
+curl -o dkms.conf -LO https://raw.githubusercontent.com/nt74/aes67daemon-installers/main/rocky9/dkms.conf
 sed -i 's/@PKGVER@/1\.1\.93/g' dkms.conf
 
 # Copy DKMS driver to correct build dirs

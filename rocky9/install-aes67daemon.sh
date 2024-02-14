@@ -82,8 +82,8 @@ rm webui.tar.gz
 # daemon
 cd ../daemon
 # Fix compilation issue with i32ClockJitter
-sed -i 's/i32Jitter/i32ClockJitter/g' session_manager.cpp
-sed -i 's/i32Jitter/i32ClockJitter/g' driver_manager.cpp
+#sed -i 's/i32Jitter/i32ClockJitter/g' session_manager.cpp
+#sed -i 's/i32Jitter/i32ClockJitter/g' driver_manager.cpp
 
 # Build aes67-daemon
 cmake -DCPP_HTTPLIB_DIR="$PKGDIR/aes67-linux-daemon/3rdparty/cpp-httplib" \

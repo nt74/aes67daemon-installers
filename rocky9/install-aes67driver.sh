@@ -13,7 +13,8 @@ set -o pipefail
 
 # Variables
 PKGDIR="$HOME/src/ravenna-alsa-lkm-dkms"
-DRIVERUSRC="https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git"
+#DRIVERUSRC="https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git"
+DRIVERUSRC="https://github.com/bondagit/ravenna-alsa-lkm.git"
 
 # Enable Extra Packages for Enterprise Linux 9
 echo "Welcome to AES67 Deamon DKMS driver intallation script."
@@ -38,7 +39,8 @@ cd $PKGDIR
 
 # Download latest driver from upstream source
 echo "Downloading latest driver from upstream source."
-git clone $DRIVERUSRC
+#git clone $DRIVERUSRC
+git clone --single-branch --branch aes67-daemon $DRIVERUSRC
 
 # Bug fixes for latest kernel
 cd ravenna-alsa-lkm

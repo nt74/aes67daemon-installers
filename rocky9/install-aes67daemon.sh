@@ -62,7 +62,6 @@ git checkout 42f9f9107f87ad2ee04be117dbbadd621c449552
 cd ..
 
 # ravenna-driver-lkm
-#git clone https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm.git
 git clone --single-branch --branch aes67-daemon https://github.com/bondagit/ravenna-alsa-lkm.git
 cd ravenna-alsa-lkm
 # Fix issue with newer kernels

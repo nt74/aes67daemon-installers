@@ -1,5 +1,9 @@
-# AES67-Daemon help installer scripts
+# AES67 Linux Daemon installer help scripts
 Custom Linux shell scripts for installing aes67-daemon and drivers.
+
+AES67 Linux Daemon is a Linux implementation of AES67 interoperability standard used to distribute and synchronize real time audio over Ethernet. 
+
+See https://github.com/bondagit/aes67-linux-daemon for more info. 
 
 Module signing
 --

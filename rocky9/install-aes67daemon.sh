@@ -102,11 +102,11 @@ sudo useradd -M -l aes67-daemon -c "AES67 Linux daemon"
 # Copy the daemon binary (make sure -DWITH_SYSTEMD=ON)
 sudo cp -v ../daemon/aes67-daemon /usr/local/bin/aes67-daemon
 # Create the daemon webui and script directories
-sudo install -v -d -o aes67-daemon /var/lib/aes67-daemon /usr/local/share/aes67-daemon/scripts/ /usr/local/share/aes67-daemon/webui/
+sudo install -v -d -o aes67-daemon /var/lib/aes67-daemon /usr/local/share/aes67-daemon/scripts /usr/local/share/aes67-daemon/webui
 # Copy the ptp script
-sudo install -v -o aes67-daemon ../daemon/scripts/ptp_status.sh /usr/local/share/aes67-daemon/scripts/
+sudo install -v -o aes67-daemon ../daemon/scripts/ptp_status.sh /usr/local/share/aes67-daemon/scripts
 # Copy the webui
-sudo cp -v -r ../webui/dist/* /usr/local/share/aes67-daemon/webui/
+sudo cp -v -r ../webui/dist/* /usr/local/share/aes67-daemon/webui
 # Copy daemon configuration and status files
 sudo install -v -o aes67-daemon status.json daemon.conf /etc
 # Copy the daemon systemd service definition

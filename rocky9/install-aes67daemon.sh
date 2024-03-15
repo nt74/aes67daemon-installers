@@ -23,7 +23,7 @@ sudo dnf update
 
 # Install all dependencies
 echo "Installing all dependencies for building the AES67 Ravenna Daemon package."
-sudo dnf install psmisc clang git npm boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel linuxptp systemd-devel avahi-devel kernel-headers-$(uname -r)
+sudo dnf install psmisc clang git npm boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel linuxptp systemd-devel kernel-headers-$(uname -r)
 
 # Create a working source dir
 mkdir -p $PKGDIR

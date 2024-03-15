@@ -35,15 +35,15 @@ cd $PKGDIR
 if ! command -v cmake >/dev/null
 then
 	echo "Installing latest version of cmake from upstream source."
-	curl -LO https://github.com/Kitware/CMake/releases/download/v3.28.1/cmake-3.28.1.tar.gz
-	tar -xzf cmake-3.28.1.tar.gz
-	cd cmake-3.28.1
+	curl -LO https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3.tar.gz
+	tar -xzf cmake-3.28.3.tar.gz
+	cd cmake-3.28.3
 	./bootstrap --prefix=/usr
 	make
 	sudo make install
 	cd ..
 else
-	echo "cmake is already installed. Recommended version 3.28.1, using:"
+	echo "cmake is already installed. Recommended version 3.28.3, using:"
 	cmake --version
 fi
 

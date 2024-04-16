@@ -2,6 +2,7 @@
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: DKMS driver installation script for Rocky Linux 9
+# Revision: 1.0
 
 # Stop script on NZEC
 set -e
@@ -15,8 +16,48 @@ set -o pipefail
 PKGDIR="$HOME/src/ravenna-alsa-lkm-dkms"
 DRIVERUSRC="https://github.com/bondagit/ravenna-alsa-lkm.git"
 
-# Enable Extra Packages for Enterprise Linux 9
-echo "Welcome to AES67 Deamon DKMS driver intallation script."
+# Check Linux distro
+if [ -f /etc/os-release ]; then
+	# freedesktop.org and systemd
+	. /etc/os-release
+	OS=${ID}
+	VERS_ID=${VERSION_ID}
+	OS_ID="${VERS_ID:0:1}"
+elif type lsb_release &> /dev/null; then
+	# linuxbase.org
+	OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
+elif [ -f /etc/lsb-release ]; then
+	# For some versions of Debian/Ubuntu without lsb_release command
+	. /etc/lsb-release
+	OS=$(echo ${DISTRIB_ID} | tr '[:upper:]' '[:lower:]')
+elif [ -f /etc/debian_version ]; then
+	# Older Debian/Ubuntu/etc.
+	OS=debian
+else
+	# Unknown
+	echo "Unknown Linux distro. Exiting!"
+	exit 1
+fi
+
+# Check if distro is Rocky Linux 9
+if [ $OS = "rocky" ] && [ $OS_ID = "9" ]; then
+	echo "Detected 'Rocky Linux 9'. Continuing."
+else
+    echo "Could not detect 'Rocky Linux 9'. Exiting."
+    exit 1
+fi
+
+# Prompt user with yes/no before proceeding
+echo "Welcome to AES67 Daemon DKMS driver intallation script."
+while true
+do
+	read -r -p "Proceed with installation? (y/n) " yesno
+	case "$yesno" in
+		n|N) exit 0;;
+		y|Y) break;;
+		*) echo "Please answer 'y/n'.";;
+	esac
+done
 
 # Enable Extra Packages for Enterprise Linux 9
 echo "Enabling Extra Packages for Enterprise Linux 9 and Development Tools."
@@ -40,7 +81,7 @@ cd $PKGDIR
 echo "Downloading latest driver from upstream source."
 git clone --single-branch --branch aes67-daemon $DRIVERUSRC
 
-# Bug fixes for latest kernel
+# Fixes for latest kernel
 cd ravenna-alsa-lkm
 sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
 sed -i 's/\.\.\/common/common/g' driver/*

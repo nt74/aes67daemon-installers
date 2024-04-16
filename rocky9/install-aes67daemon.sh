@@ -2,6 +2,7 @@
 # Script: install-aes67daemon.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: AES67 Ravenna Daemon version 1.1.93 installer for Rocky Linux 9
+# Revision: 1.0
 
 # Stop script on NZEC
 set -e
@@ -13,18 +14,64 @@ set -o pipefail
 
 # Variables
 PKGDIR="$HOME/src/aes67-daemon"
+PKGVER="1.1.93"
 DRIVERUSRC="https://github.com/bondagit/aes67-linux-daemon.git"
 
-# Enable Extra Packages for Enterprise Linux 9
-echo "Welcome to AES67 Ravenna Daemon version 1.1.93 installer script for Rocky Linux 9."
+# Check Linux distro
+if [ -f /etc/os-release ]; then
+	# freedesktop.org and systemd
+	. /etc/os-release
+	OS=${ID}
+	VERS_ID=${VERSION_ID}
+	OS_ID="${VERS_ID:0:1}"
+elif type lsb_release &> /dev/null; then
+	# linuxbase.org
+	OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
+elif [ -f /etc/lsb-release ]; then
+	# For some versions of Debian/Ubuntu without lsb_release command
+	. /etc/lsb-release
+	OS=$(echo ${DISTRIB_ID} | tr '[:upper:]' '[:lower:]')
+elif [ -f /etc/debian_version ]; then
+	# Older Debian/Ubuntu/etc.
+	OS=debian
+else
+	# Unknown
+	echo "Unknown Linux distro. Exiting!"
+	exit 1
+fi
+
+# Check if distro is Rocky Linux 9
+if [ $OS = "rocky" ] && [ $OS_ID = "9" ]; then
+	echo "Detected 'Rocky Linux 9'. Continuing."
+else
+    echo "Could not detect 'Rocky Linux 9'. Exiting."
+    exit 1
+fi
+
+# Prompt user with yes/no before proceeding
+echo "Welcome to AES67 Ravenna Daemon version $PKGVER installer script for Rocky Linux 9."
+while true
+do
+	read -r -p "Proceed with installation? (y/n) " yesno
+	case "$yesno" in
+		n|N) exit 0;;
+		y|Y) break;;
+		*) echo "Please answer 'y/n'.";;
+	esac
+done
 
 # Update package repos cache
 sudo dnf update
 
 # Install all dependencies
 echo "Installing all dependencies for building the AES67 Ravenna Daemon package."
-sudo dnf install psmisc clang git npm boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel linuxptp systemd-devel kernel-headers-$(uname -r)
+sudo dnf install psmisc clang cmake git npm boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel linuxptp systemd-devel kernel-headers-$(uname -r)
 sudo dnf --enablerepo=crb install avahi-devel
+
+# Update ldconfig
+echo "Updating 'ldconfig' and 'updatedb'."
+sudo ldconfig
+sudo updatedb
 
 # Create a working source dir
 mkdir -p $PKGDIR
@@ -97,6 +144,17 @@ make
 cd ..
 
 # Create systemd service and user
+# Prompt user with yes/no before proceeding
+while true
+do
+	read -r -p "Proceed with creating and enabling systemd service 'aes67-daemon.service' and user 'aes67-daemon'? (y/n) " yesno
+	case "$yesno" in
+		n|N) exit 0;;
+		y|Y) break;;
+		*) echo "Please answer 'y/n'.";;
+	esac
+done
+
 cd systemd
 # Create a user for the daemon
 sudo useradd -M -l aes67-daemon -c "AES67 Linux daemon"

@@ -101,7 +101,7 @@ make modules
 
 # webui
 cd ../../../webui
-wget https://github.com/bondagit/aes67-linux-daemon/releases/latest/download/webui.tar.gz
+curl -LO https://github.com/bondagit/aes67-linux-daemon/releases/latest/download/webui.tar.gz
 tar -xzf webui.tar.gz
 # npm install react-modal react-toastify react-router-dom
 npm i

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: DKMS driver installation script for Rocky Linux 9

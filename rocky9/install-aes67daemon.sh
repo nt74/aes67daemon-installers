@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Script: install-aes67daemon.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: AES67 Ravenna Daemon version 1.1.93 installer for Rocky Linux 9

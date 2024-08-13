@@ -2,7 +2,7 @@
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: DKMS driver installation script for Rocky Linux 9
-# Revision: 1.0
+# Revision: 1.1
 
 # Stop script on NZEC
 set -e
@@ -14,7 +14,11 @@ set -o pipefail
 
 # Variables
 PKGDIR="$HOME/src/ravenna-alsa-lkm-dkms"
-DRIVERUSRC="https://github.com/bondagit/ravenna-alsa-lkm.git"
+PKGNAME="ravenna-alsa-lkm"
+PKGVER="1.10"
+RAVENNA_DKMS_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PKGVER}.tar.gz"
+RAVENNA_DKMS_VER="1.1.93"
+RAVENNA_DKMS_MD5="b67cb0132776c1f4d8d55d1bd0b96dc0"
 
 # Check Linux distro
 if [ -f /etc/os-release ]; then
@@ -23,7 +27,7 @@ if [ -f /etc/os-release ]; then
 	OS=${ID}
 	VERS_ID=${VERSION_ID}
 	OS_ID="${VERS_ID:0:1}"
-elif type lsb_release &> /dev/null; then
+elif type lsb_release &>/dev/null; then
 	# linuxbase.org
 	OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
 elif [ -f /etc/lsb-release ]; then
@@ -43,19 +47,18 @@ fi
 if [ $OS = "rocky" ] && [ $OS_ID = "9" ]; then
 	echo "Detected 'Rocky Linux 9'. Continuing."
 else
-    echo "Could not detect 'Rocky Linux 9'. Exiting."
-    exit 1
+	echo "Could not detect 'Rocky Linux 9'. Exiting."
+	exit 1
 fi
 
 # Prompt user with yes/no before proceeding
 echo "Welcome to AES67 Daemon DKMS driver intallation script."
-while true
-do
+while true; do
 	read -r -p "Proceed with installation? (y/n) " yesno
 	case "$yesno" in
-		n|N) exit 0;;
-		y|Y) break;;
-		*) echo "Please answer 'y/n'.";;
+	n | N) exit 0 ;;
+	y | Y) break ;;
+	*) echo "Please answer 'y/n'." ;;
 	esac
 done
 
@@ -79,34 +82,42 @@ cd $PKGDIR
 
 # Download latest driver from upstream source
 echo "Downloading latest driver from upstream source."
-git clone --single-branch --branch aes67-daemon $DRIVERUSRC
+if [ ! -f "${PKGNAME}-${PKGVER}.tar.gz" ]; then
+	curl -o ${PKGNAME}-${PKGVER}.tar.gz -LO ${RAVENNA_DKMS_PKG}
+fi
+
+# Checksum
+md5sum -c <<<"${RAVENNA_DKMS_MD5} ${PKGNAME}-${PKGVER}.tar.gz" || exit 1
+
+# Install ravenna-alsa-lkm driver DKMS package
+tar -xf ${PKGNAME}-${PKGVER}.tar.gz
 
 # Fixes for latest kernel
-cd ravenna-alsa-lkm
+cd ${PKGNAME}-${PKGVER}
 sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
 sed -i 's/\.\.\/common/common/g' driver/*
 
 # Create DKMS driver build dir
-mkdir -p build/usr/src/ravenna-alsa-lkm-1.1.93/common
+mkdir -p build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common
 
-# Download dkms.conf file from AUR source and set correct version
+# Download custom dkms.conf file and set correct version
 curl -o dkms.conf -LO https://raw.githubusercontent.com/nt74/aes67daemon-installers/main/rocky9/dkms.conf
 sed -i 's/@PKGVER@/1\.1\.93/g' dkms.conf
 
 # Copy DKMS driver to correct build dirs
-install -Dm644 dkms.conf build/usr/src/ravenna-alsa-lkm-1.1.93/dkms.conf
-cp -r driver/* build/usr/src/ravenna-alsa-lkm-1.1.93
-cp -r common/* build/usr/src/ravenna-alsa-lkm-1.1.93/common
+install -Dm644 dkms.conf build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/dkms.conf
+cp -r driver/* build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}
+cp -r common/* build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common
 
 # Copy final DKMS driver to kernel source dir
 cd build/usr/src
-sudo cp -R ravenna-alsa-lkm-1.1.93 /usr/src
+sudo cp -R ${PKGNAME}-${RAVENNA_DKMS_VER} /usr/src
 
 # Build and install DKMS driver
 echo "Building DKMS driver."
-sudo dkms build -m ravenna-alsa-lkm -v 1.1.93
+sudo dkms build -m ${PKGNAME} -v ${RAVENNA_DKMS_VER}
 echo "Installing DKMS driver."
-sudo dkms install -m ravenna-alsa-lkm -v 1.1.93
+sudo dkms install -m ${PKGNAME} -v ${RAVENNA_DKMS_VER}
 
 # Create autoload of module
 echo "MergingRavennaALSA" | sudo tee -a /etc/modules-load.d/aes67daemon.conf

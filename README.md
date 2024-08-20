@@ -25,11 +25,15 @@ chmod +x install-*
 
 It is now possible to run any installer script by running:
 
+```
 ./install-aes67driver.sh
+```
 
 and
 
+```
 ./install-aes67daemon.sh
+```
 
 Module signing
 --

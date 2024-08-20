@@ -107,10 +107,10 @@ sudo dnf --enablerepo=crb install -y avahi-devel
 
 # Install libfaac (3rd party) dependencies
 echo "Installing 'Freeware Advanced Audio Coder' libraries, licensed under 'GPL2'."
-curl -o "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" -sL ${FAAC_LIBS_PKG_1}
+curl -# -o "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" -LO ${FAAC_LIBS_PKG_1}
 echo ${FAAC_LIBS_MD5_1} "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" | md5sum -c || exit 1
 
-curl -o "libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm" -sL ${FAAC_LIBS_PKG_2}
+curl -# -o "libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm" -LO ${FAAC_LIBS_PKG_2}
 echo ${FAAC_LIBS_MD5_2} "libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm" | md5sum -c || exit 1
 
 rpm --nosignature -Uvh "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" || echo $0
@@ -123,7 +123,7 @@ sudo updatedb
 
 # Download latest driver from upstream source
 echo "Downloading latest driver from upstream source."
-curl -o "${PKGNAME}-${PKGVER}.tar.gz" -sL ${AES67_DAEMON_PKG}
+curl -# -o "${PKGNAME}-${PKGVER}.tar.gz" -LO ${AES67_DAEMON_PKG}
 echo ${AES67_DAEMON_PKG_MD5} "${PKGNAME}-${PKGVER}.tar.gz" | md5sum -c || exit 1
 tar -xf "${PKGNAME}-${PKGVER}.tar.gz"
 
@@ -134,7 +134,7 @@ cd ${PKGNAME}-${PKGVER}
 cd 3rdparty
 
 # Cpp-httplib
-curl -o "cpp-httplib.zip" -sL ${HTTPLIB_PKG}
+curl -# -o "cpp-httplib.zip" -LO ${HTTPLIB_PKG}
 echo ${HTTPLIB_PKG_MD5} "cpp-httplib.zip" | md5sum -c || exit 1
 unzip -q "cpp-httplib.zip"
 mv cpp-httplib-* cpp-httplib
@@ -142,7 +142,7 @@ mv cpp-httplib-* cpp-httplib
 mv "cpp-httplib.zip" ${PKGDIR}
 
 # Ravenna-driver-lkm
-curl -o "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz" -sL ${RAVENNA_DRIVER_PKG}
+curl -# -o "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz" -LO ${RAVENNA_DRIVER_PKG}
 echo ${RAVENNA_DRIVER_MD5} "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz" | md5sum -c || exit 1
 tar -xf "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz"
 rm -f "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz"
@@ -155,7 +155,7 @@ make modules
 # Webui
 cd ../../../webui
 
-curl -o "webui.tar.gz" -sL ${WEBUI_PKG}
+curl -# -o "webui.tar.gz" -LO ${WEBUI_PKG}
 echo ${WEBUI_PKG_MD5} "webui.tar.gz" | md5sum -c || exit 1
 tar -xf webui.tar.gz
 # npm install react-modal react-toastify react-router-dom

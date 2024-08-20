@@ -2,7 +2,7 @@
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: DKMS driver installation script for Rocky Linux 9
-# Revision: 1.1
+# Revision: 1.2
 
 # Stop script on NZEC
 set -e
@@ -62,37 +62,44 @@ while true; do
 	esac
 done
 
+# Create a working source dir
+if [ -d "${PKGDIR}" ]; then
+	while true; do
+		echo "Source directory '${PKGDIR}' already exists."
+		read -r -p "Delete it and reinstall? (y/n) " yesno
+		case "$yesno" in
+		n | N) exit 0 ;;
+		y | Y) break ;;
+		*) echo "Please answer 'y/n'." ;;
+		esac
+	done
+fi
+
+rm -fr ${PKGDIR}
+mkdir -v -p ${PKGDIR}
+cd ${PKGDIR}
+
 # Enable Extra Packages for Enterprise Linux 9
 echo "Enabling Extra Packages for Enterprise Linux 9 and Development Tools."
-sudo dnf install epel-release
+sudo dnf install -y epel-release
 sudo /usr/bin/crb enable
 
 # Enable Development Tools
-sudo dnf groupinstall "Development Tools"
+sudo dnf groupinstall -y "Development Tools"
 
 # Update package repos cache
 sudo dnf makecache
 
 # Install Rocky Linux 9 dkms package
-sudo dnf install dkms kernel-headers-$(uname -r)
-
-# Create a working source dir
-mkdir -p $PKGDIR
-cd $PKGDIR
+sudo dnf install -y dkms kernel-headers-$(uname -r)
 
 # Download latest driver from upstream source
 echo "Downloading latest driver from upstream source."
-if [ ! -f "${PKGNAME}-${PKGVER}.tar.gz" ]; then
-	curl -o ${PKGNAME}-${PKGVER}.tar.gz -LO ${RAVENNA_DKMS_PKG}
-fi
-
-# Checksum
+curl -# -o ${PKGNAME}-${PKGVER}.tar.gz -LO ${RAVENNA_DKMS_PKG}
 md5sum -c <<<"${RAVENNA_DKMS_MD5} ${PKGNAME}-${PKGVER}.tar.gz" || exit 1
-
-# Install ravenna-alsa-lkm driver DKMS package
 tar -xf ${PKGNAME}-${PKGVER}.tar.gz
 
-# Fixes for latest kernel
+# Patches and fixes
 cd ${PKGNAME}-${PKGVER}
 sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
 sed -i 's/\.\.\/common/common/g' driver/*
@@ -101,7 +108,7 @@ sed -i 's/\.\.\/common/common/g' driver/*
 mkdir -p build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common
 
 # Download custom dkms.conf file and set correct version
-curl -o dkms.conf -LO https://raw.githubusercontent.com/nt74/aes67daemon-installers/main/rocky9/dkms.conf
+curl -# -o dkms.conf -LO https://raw.githubusercontent.com/nt74/aes67daemon-installers/main/rocky9/dkms.conf
 sed -i 's/@PKGVER@/1\.1\.93/g' dkms.conf
 
 # Copy DKMS driver to correct build dirs
@@ -119,8 +126,10 @@ sudo dkms build -m ${PKGNAME} -v ${RAVENNA_DKMS_VER}
 echo "Installing DKMS driver."
 sudo dkms install -m ${PKGNAME} -v ${RAVENNA_DKMS_VER}
 
-# Create autoload of module
-echo "MergingRavennaALSA" | sudo tee -a /etc/modules-load.d/aes67daemon.conf
+# Create autoload of module 'MergingRavennaALSA'
+if [ ! -f /etc/modules-load.d/aes67daemon.conf ]; then
+	echo "MergingRavennaALSA" | sudo tee -a /etc/modules-load.d/aes67daemon.conf
+fi
 
 # Prompt about final steps
 echo "Successfully installed DKMS drivers, now reboot and check"

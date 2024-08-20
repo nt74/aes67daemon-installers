@@ -10,10 +10,18 @@ https://github.com/bondagit/aes67-linux-daemon
 https://bitbucket.org/MergingTechnologies/ravenna-alsa-lkm/src/master/README.md 
 
 ## Instructions
-1. `mkdir -p ~/src && cd ~/src`
-2. `git clone https://github.com/nt74/aes67daemon-installers.git`
-3. `cd aes67daemon-installers/rocky9`
-4. `chmod +x install-*`
+```
+mkdir -p ~/src && cd ~/src
+```
+```
+git clone https://github.com/nt74/aes67daemon-installers.git
+```
+```
+cd aes67daemon-installers/rocky9
+```
+```
+chmod +x install-*
+```
 
 It is now possible to run any installer script by running:
 

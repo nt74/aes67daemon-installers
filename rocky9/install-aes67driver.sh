@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
-# Description: DKMS driver installation script for Rocky Linux 9
-# Revision: 1.2
+# Description: AES67 Daemon DKMS driver installation script for Rocky Linux 9
+# Revision: 1.3
 
 # Stop script on NZEC
 set -e
@@ -15,10 +15,10 @@ set -o pipefail
 # Variables
 PKGDIR="$HOME/src/ravenna-alsa-lkm-dkms"
 PKGNAME="ravenna-alsa-lkm"
-PKGVER="1.10"
+PKGVER="1.11"
 RAVENNA_DKMS_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PKGVER}.tar.gz"
 RAVENNA_DKMS_VER="1.1.93"
-RAVENNA_DKMS_MD5="b67cb0132776c1f4d8d55d1bd0b96dc0"
+RAVENNA_DKMS_MD5="91ef2b6eaf4e8cd141a036c98c4dab18"
 
 # Check Linux distro
 if [ -f /etc/os-release ]; then

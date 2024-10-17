@@ -2,7 +2,7 @@
 # Script: install-aes67daemon.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: AES67 Ravenna Daemon installer for Rocky Linux 9
-# Revision: 1.1
+# Revision: 1.2
 
 # Stop script on NZEC
 set -e
@@ -15,28 +15,28 @@ set -o pipefail
 # Variables
 PKGDIR="$HOME/src/aes67-daemon"
 PKGNAME="aes67-linux-daemon"
-PKGVER="2.0.1"
+PKGVER="2.0.2"
 AES67_DAEMON_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PKGVER}.tar.gz"
-AES67_DAEMON_PKG_MD5="01eaa463845e240609695fbf67359a9c"
+AES67_DAEMON_PKG_MD5="5234793f638937eb6c1a99a38dbd55f2"
 
-# Modules Driver (Ver. 1.10)
-RAVENNA_DRIVER_PKGVER="1.10"
+# Modules Driver (Ver. 1.11)
+RAVENNA_DRIVER_PKGVER="1.11"
 RAVENNA_DRIVER_PKG="https://github.com/bondagit/ravenna-alsa-lkm/archive/refs/tags/v${RAVENNA_DRIVER_PKGVER}.tar.gz"
-RAVENNA_DRIVER_MD5="b67cb0132776c1f4d8d55d1bd0b96dc0"
+RAVENNA_DRIVER_MD5="91ef2b6eaf4e8cd141a036c98c4dab18"
 
-# Web-UI (Ver. 2.0.1)
+# Web-UI (Ver. 2.0.2)
 WEBUI_PKG="https://github.com/bondagit/aes67-linux-daemon/releases/download/v${PKGVER}/webui.tar.gz"
-WEBUI_PKG_MD5="7406813b6ac8c0e147e967b45b3367f9"
+WEBUI_PKG_MD5="a61aa1a1c839ce9cd8f7c4e845f40ae6"
 
 # HTTP-Lib (Git-commit: 07c6e58951931f8c74de8291ff35a3298fe481c4)
 HTTPLIB_PKG="https://github.com/bondagit/cpp-httplib/archive/07c6e58951931f8c74de8291ff35a3298fe481c4.zip"
 HTTPLIB_PKG_MD5="79507658cac131d441f0439a4c218a2d"
 
 # Libraries for FAAC (Ver. 1.30)
-FAAC_LIBS_PKG_1="https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.6/Essentials/x86_64/libfaac0-1.30-150600.2.pm.4.x86_64.rpm"
-FAAC_LIBS_MD5_1="89dbe0ba9f0c158e1d10175102f45191"
-FAAC_LIBS_PKG_2="https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.6/Essentials/x86_64/libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm"
-FAAC_LIBS_MD5_2="2b74ca1ce5b62d18c26f27aa667c18ad"
+FAAC_LIBS_PKG_1="https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.6/Essentials/x86_64/libfaac0-1.30-150600.2.pm.6.x86_64.rpm"
+FAAC_LIBS_MD5_1="cbae7b3d8815e3250100b1ce71aabfc1"
+FAAC_LIBS_PKG_2="https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_15.6/Essentials/x86_64/libfaac-devel-1.30-150600.2.pm.6.x86_64.rpm"
+FAAC_LIBS_MD5_2="c150af76244de0e4dd603a2ac5104c26"
 
 # Check Linux distro
 if [ -f /etc/os-release ]; then
@@ -102,19 +102,19 @@ sudo dnf update -y
 
 # Install all dependencies
 echo "Installing all dependencies for building the AES67 Ravenna Daemon package."
-sudo dnf install -y glibc mlocate psmisc clang cmake git npm boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel linuxptp systemd-devel kernel-headers-$(uname -r)
+sudo dnf install -y glibc mlocate psmisc clang cmake cpp-httplib-devel git npm boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel linuxptp systemd-devel kernel-headers-$(uname -r)
 sudo dnf --enablerepo=crb install -y avahi-devel
 
 # Install libfaac (3rd party) dependencies
 echo "Installing 'Freeware Advanced Audio Coder' libraries, licensed under 'GPL2'."
-curl -# -o "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" -LO ${FAAC_LIBS_PKG_1}
-echo ${FAAC_LIBS_MD5_1} "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" | md5sum -c || exit 1
+curl -# -o "libfaac0-1.30-150600.2.pm.6.x86_64.rpm" -LO ${FAAC_LIBS_PKG_1}
+echo ${FAAC_LIBS_MD5_1} "libfaac0-1.30-150600.2.pm.6.x86_64.rpm" | md5sum -c || exit 1
 
-curl -# -o "libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm" -LO ${FAAC_LIBS_PKG_2}
-echo ${FAAC_LIBS_MD5_2} "libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm" | md5sum -c || exit 1
+curl -# -o "libfaac-devel-1.30-150600.2.pm.6.x86_64.rpm" -LO ${FAAC_LIBS_PKG_2}
+echo ${FAAC_LIBS_MD5_2} "libfaac-devel-1.30-150600.2.pm.6.x86_64.rpm" | md5sum -c || exit 1
 
-rpm --nosignature -Uvh "libfaac0-1.30-150600.2.pm.4.x86_64.rpm" || echo $0
-rpm --nosignature -Uvh "libfaac-devel-1.30-150600.2.pm.4.x86_64.rpm" || echo $0
+sudo rpm --nosignature -Uvh "libfaac0-1.30-150600.2.pm.6.x86_64.rpm" || echo $0
+sudo rpm --nosignature -Uvh "libfaac-devel-1.30-150600.2.pm.6.x86_64.rpm" || echo $0
 
 # Update ldconfig (Req. glibc, mlocate)
 echo "Updating 'ldconfig' and 'updatedb'."

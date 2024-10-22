@@ -96,7 +96,7 @@ sudo dnf install -y dkms kernel-headers-$(uname -r)
 # Download latest driver from upstream source
 echo "Downloading latest driver from upstream source."
 curl -# -o ${PKGNAME}-${PKGVER}.tar.gz -LO ${RAVENNA_DKMS_PKG}
-md5sum -c <<<"${RAVENNA_DKMS_MD5} ${PKGNAME}-${PKGVER}.tar.gz" || exit 1
+echo ${RAVENNA_DKMS_MD5} ${PKGNAME}-${PKGVER}.tar.gz | md5sum -c || exit 1
 tar -xf ${PKGNAME}-${PKGVER}.tar.gz
 
 # Patches and fixes

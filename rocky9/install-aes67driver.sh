@@ -2,15 +2,9 @@
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: AES67 Daemon DKMS driver installation script for Rocky Linux 9
-# Revision: 1.3
+# Revision: 1.4
 
-# Stop script on NZEC
-set -e
-# Stop script if unbound variable found (use ${var:-} if intentional)
-set -u
-# By default cmd1 | cmd2 returns exit code of cmd2 regardless of cmd1 success
-# This is causing it to fail
-set -o pipefail
+set -euo pipefail
 
 # Variables
 PKGDIR="$HOME/src/ravenna-alsa-lkm-dkms"
@@ -20,119 +14,126 @@ RAVENNA_DKMS_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PK
 RAVENNA_DKMS_VER="1.1.93"
 RAVENNA_DKMS_MD5="91ef2b6eaf4e8cd141a036c98c4dab18"
 
-# Check Linux distro
-if [ -f /etc/os-release ]; then
-	# freedesktop.org and systemd
-	. /etc/os-release
-	OS=${ID}
-	VERS_ID=${VERSION_ID}
-	OS_ID="${VERS_ID:0:1}"
-elif type lsb_release &>/dev/null; then
-	# linuxbase.org
-	OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-elif [ -f /etc/lsb-release ]; then
-	# For some versions of Debian/Ubuntu without lsb_release command
-	. /etc/lsb-release
-	OS=$(echo ${DISTRIB_ID} | tr '[:upper:]' '[:lower:]')
-elif [ -f /etc/debian_version ]; then
-	# Older Debian/Ubuntu/etc.
-	OS=debian
-else
-	# Unknown
-	echo "Unknown Linux distro. Exiting!"
-	exit 1
-fi
+# Colors
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+NC='\033[0m' # No Color
 
-# Check if distro is Rocky Linux 9
-if [ $OS = "rocky" ] && [ $OS_ID = "9" ]; then
-	echo "Detected 'Rocky Linux 9'. Continuing."
-else
-	echo "Could not detect 'Rocky Linux 9'. Exiting."
-	exit 1
-fi
+# Logging Functions
+function log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
 
-# Prompt user with yes/no before proceeding
-echo "Welcome to AES67 Daemon DKMS driver intallation script."
-while true; do
-	read -r -p "Proceed with installation? (y/n) " yesno
-	case "$yesno" in
-	n | N) exit 0 ;;
-	y | Y) break ;;
-	*) echo "Please answer 'y/n'." ;;
-	esac
-done
+function log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
 
-# Create a working source dir
-if [ -d "${PKGDIR}" ]; then
-	while true; do
-		echo "Source directory '${PKGDIR}' already exists."
-		read -r -p "Delete it and reinstall? (y/n) " yesno
-		case "$yesno" in
-		n | N) exit 0 ;;
-		y | Y) break ;;
-		*) echo "Please answer 'y/n'." ;;
-		esac
-	done
-fi
+function log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+    exit 1
+}
 
-rm -fr ${PKGDIR}
-mkdir -v -p ${PKGDIR}
-cd ${PKGDIR}
+# Functions
+function prompt_user() {
+    local prompt="$1"
+    while true; do
+        read -r -p "$prompt (y/n) " response
+        case "$response" in
+            [Yy]) return 0 ;;
+            [Nn]) return 1 ;;
+            *) echo "Please answer 'y' or 'n'." ;;
+        esac
+    done
+}
 
-# Enable Extra Packages for Enterprise Linux 9
-echo "Enabling Extra Packages for Enterprise Linux 9 and Development Tools."
-sudo dnf install -y epel-release
-sudo /usr/bin/crb enable
+function check_distro() {
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        [[ "${ID}" == "rocky" && "${VERSION_ID%%.*}" == "9" ]] || log_error "This script supports only Rocky Linux 9."
+    else
+        log_error "Unable to detect Linux distribution."
+    fi
+}
 
-# Enable Development Tools
-sudo dnf groupinstall -y "Development Tools"
+function install_dependencies() {
+    log_info "Installing necessary packages..."
+    sudo dnf install -y epel-release
+    sudo /usr/bin/crb enable
+    sudo dnf groupinstall -y "Development Tools"
+    sudo dnf install -y dkms kernel-headers-$(uname -r)
+    sudo dnf makecache
+}
 
-# Update package repos cache
-sudo dnf makecache
+function download_driver() {
+    log_info "Downloading driver from upstream source..."
+    curl -# -o "${PKGNAME}-${PKGVER}.tar.gz" -LO "${RAVENNA_DKMS_PKG}"
+    echo "${RAVENNA_DKMS_MD5}  ${PKGNAME}-${PKGVER}.tar.gz" | md5sum -c || log_error "MD5 checksum verification failed."
+    tar -xf "${PKGNAME}-${PKGVER}.tar.gz"
+}
 
-# Install Rocky Linux 9 dkms package
-sudo dnf install -y dkms kernel-headers-$(uname -r)
+function apply_patches() {
+    log_info "Applying patches..."
+    sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
+    sed -i 's/\.\./common/g' driver/*
+}
 
-# Download latest driver from upstream source
-echo "Downloading latest driver from upstream source."
-curl -# -o ${PKGNAME}-${PKGVER}.tar.gz -LO ${RAVENNA_DKMS_PKG}
-echo ${RAVENNA_DKMS_MD5} ${PKGNAME}-${PKGVER}.tar.gz | md5sum -c || exit 1
-tar -xf ${PKGNAME}-${PKGVER}.tar.gz
+function setup_dkms() {
+    log_info "Setting up DKMS driver..."
+    mkdir -p "build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common"
+    curl -# -o dkms.conf -LO https://raw.githubusercontent.com/nt74/aes67daemon-installers/main/rocky9/dkms.conf
+    sed -i "s/@PKGVER@/${RAVENNA_DKMS_VER}/g" dkms.conf
+    install -Dm644 dkms.conf "build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/dkms.conf"
+    install -Dm644 driver/*.{c,h} "build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/"
+    install -Dm644 common/*.{c,h} "build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common/"
+    install -Dm644 driver/Makefile "build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/"
+}
 
-# Patches and fixes
-cd ${PKGNAME}-${PKGVER}
-sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
-sed -i 's/\.\.\/common/common/g' driver/*
+function install_dkms() {
+    log_info "Installing DKMS driver..."
+    sudo cp -R "build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}" /usr/src
+    sudo dkms build -m "${PKGNAME}" -v "${RAVENNA_DKMS_VER}"
+    sudo dkms install -m "${PKGNAME}" -v "${RAVENNA_DKMS_VER}"
+}
 
-# Create DKMS driver build dir
-mkdir -p build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common
+function enable_autoload() {
+    log_info "Enabling module autoload..."
+    if [[ ! -f /etc/modules-load.d/aes67daemon.conf ]]; then
+        echo "MergingRavennaALSA" | sudo tee /etc/modules-load.d/aes67daemon.conf
+    fi
+}
 
-# Download custom dkms.conf file and set correct version
-curl -# -o dkms.conf -LO https://raw.githubusercontent.com/nt74/aes67daemon-installers/main/rocky9/dkms.conf
-sed -i 's/@PKGVER@/1\.1\.93/g' dkms.conf
+function reboot_system() {
+    log_info "The system needs to reboot to complete the installation."
+    if prompt_user "Would you like to reboot now?"; then
+        log_info "Rebooting the system..."
+        sudo reboot
+    else
+        log_info "Reboot skipped. Please remember to reboot later to load the driver."
+    fi
+}
 
-# Copy DKMS driver to correct build dirs
-install -Dm644 dkms.conf build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/dkms.conf
-cp -r driver/* build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}
-cp -r common/* build/usr/src/${PKGNAME}-${RAVENNA_DKMS_VER}/common
+# Main Script
+check_distro
+log_info "Welcome to AES67 Daemon DKMS driver installation script."
+prompt_user "Proceed with installation?" || exit 0
 
-# Copy final DKMS driver to kernel source dir
-cd build/usr/src
-sudo cp -R ${PKGNAME}-${RAVENNA_DKMS_VER} /usr/src
+[[ -d "$PKGDIR" ]] && {
+    log_warning "Source directory '$PKGDIR' already exists."
+    prompt_user "Delete and reinstall?" || exit 0
+    rm -rf "$PKGDIR"
+}
 
-# Build and install DKMS driver
-echo "Building DKMS driver."
-sudo dkms build -m ${PKGNAME} -v ${RAVENNA_DKMS_VER}
-echo "Installing DKMS driver."
-sudo dkms install -m ${PKGNAME} -v ${RAVENNA_DKMS_VER}
+mkdir -p "$PKGDIR" && cd "$PKGDIR"
+install_dependencies
+download_driver
+cd "${PKGNAME}-${PKGVER}"
+apply_patches
+setup_dkms
+install_dkms
+enable_autoload
 
-# Create autoload of module 'MergingRavennaALSA'
-if [ ! -f /etc/modules-load.d/aes67daemon.conf ]; then
-	echo "MergingRavennaALSA" | sudo tee -a /etc/modules-load.d/aes67daemon.conf
-fi
-
-# Prompt about final steps
-echo "Successfully installed DKMS drivers, now reboot and check"
-echo "if the module is loaded by typing 'lsmod | grep Ravenna'."
-
+log_info "Installation complete. To check if module is loaded type 'lsmod | grep Ravenna'."
+reboot_system
 exit 0

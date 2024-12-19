@@ -12,17 +12,17 @@ ERROR='\033[0;31m' # Red
 
 # Function to print info messages
 info() {
-	echo -e "${INFO}[INFO]${NC} $1"
+	echo -e "${INFO}[INFO] $1${NC}"
 }
 
 # Function to print warning messages
 warn() {
-	echo -e "${WARN}[WARN]${NC} $1"
+	echo -e "${WARN}[WARN] $1${NC}"
 }
 
 # Function to print error messages
 error() {
-	echo -e "${ERROR}[ERROR]${NC} $1"
+	echo -e "${ERROR}[ERROR] $1${NC}"
 }
 
 # Set bash options for robust error handling

@@ -23,15 +23,15 @@ NC='\033[0m' # No Color
 
 # Logging Functions
 function log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO] $1${NC}"
 }
 
 function log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING] $1${NC}"
 }
 
 function log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR] $1${NC}"
     exit 1
 }
 

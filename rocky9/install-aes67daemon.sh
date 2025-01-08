@@ -59,36 +59,13 @@ WEBUI_DIR="${SRC_DIR}/webui"
 DAEMON_DIR="${SRC_DIR}/daemon"
 SYSTEMD_DIR="${SRC_DIR}/systemd"
 
-check_distro() {
-	# Check Linux distro
-	if [[ -f /etc/os-release ]]; then
-		# freedesktop.org and systemd
-		. /etc/os-release
-		OS=${ID}
-		VERS_ID=${VERSION_ID}
-		OS_ID="${VERS_ID:0:1}"
-	elif command -v lsb_release &>/dev/null; then
-		# linuxbase.org
-		OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-	elif [[ -f /etc/lsb-release ]]; then
-		# For some versions of Debian/Ubuntu without lsb_release command
-		. /etc/lsb-release
-		OS=$(echo "${DISTRIB_ID}" | tr '[:upper:]' '[:lower:]')
-	elif [[ -f /etc/debian_version ]]; then
-		# Older Debian/Ubuntu/etc.
-		OS=debian
-	else
-		error "Unknown Linux distro. Exiting!"
-		exit 1
-	fi
-
-	# Check if distro is Rocky Linux 9
-	if [[ "${OS}" == "rocky" && "${OS_ID}" == "9" ]]; then
-		info "Detected 'Rocky Linux 9'. Continuing."
-	else
-		error "Could not detect 'Rocky Linux 9'. Exiting."
-		exit 1
-	fi
+function check_distro() {
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        [[ "${ID}" == "rocky" && "${VERSION_ID%%.*}" == "9" ]] || log_error "This script supports only Rocky Linux 9."
+    else
+        log_error "Unable to detect Linux distribution."
+    fi
 }
 
 prompt_user() {

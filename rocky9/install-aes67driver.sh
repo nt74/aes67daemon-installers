@@ -2,17 +2,17 @@
 # Script: install-aes67driver.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: AES67 Daemon DKMS driver installation script for Rocky Linux 9
-# Revision: 1.4
+# Revision: 1.5
 
 set -euo pipefail
 
 # Variables
 PKGDIR="$HOME/src/ravenna-alsa-lkm-dkms"
 PKGNAME="ravenna-alsa-lkm"
-PKGVER="1.11"
+PKGVER="1.14"
 RAVENNA_DKMS_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PKGVER}.tar.gz"
 RAVENNA_DKMS_VER="1.1.93"
-RAVENNA_DKMS_MD5="91ef2b6eaf4e8cd141a036c98c4dab18"
+RAVENNA_DKMS_MD5="a84bb546e60a50284300c4cfa4489d41"
 
 # Colors
 RED='\033[1;31m'
@@ -75,8 +75,15 @@ function download_driver() {
 
 function apply_patches() {
     log_info "Applying patches..."
-    sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
-    sed -i 's/\.\./common/g' driver/*
+    local driver_dir="$PKGDIR/${PKGNAME}-${PKGVER}/driver"
+    if [[ -d "$driver_dir" ]]; then
+        sed -i '/MODULE_SUPPORTED_DEVICE/d' $driver_dir/module_interface.c
+        sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' "$driver_dir/MTAL_LKernelAPI.c"
+        sed -i 's#common/common/#common/#g' "$driver_dir"/*.h "$driver_dir"/*.c
+        sed -i 's#\.\./common/#common/#g' "$driver_dir"/*.h "$driver_dir"/*.c
+    else
+        log_error "Driver directory not found: $driver_dir"
+    fi
 }
 
 function setup_dkms() {

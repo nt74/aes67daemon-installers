@@ -2,7 +2,7 @@
 # Script: install-aes67daemon.sh
 # Author: nikos.toutountzoglou@svt.se
 # Description: AES67 Ravenna Daemon installer for Rocky Linux 9
-# Revision: 1.3
+# Revision: 1.4
 
 # Define color codes
 NC='\033[0m'       # No Color
@@ -35,10 +35,10 @@ PKGVER="2.0.2"
 AES67_DAEMON_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PKGVER}.tar.gz"
 AES67_DAEMON_PKG_MD5="5234793f638937eb6c1a99a38dbd55f2"
 
-# Modules Driver (Ver. 1.11)
-RAVENNA_DRIVER_PKGVER="1.11"
+# Modules Driver (Ver. 1.14)
+RAVENNA_DRIVER_PKGVER="1.14"
 RAVENNA_DRIVER_PKG="https://github.com/bondagit/ravenna-alsa-lkm/archive/refs/tags/v${RAVENNA_DRIVER_PKGVER}.tar.gz"
-RAVENNA_DRIVER_MD5="91ef2b6eaf4e8cd141a036c98c4dab18"
+RAVENNA_DRIVER_MD5="a84bb546e60a50284300c4cfa4489d41"
 
 # Web-UI (Ver. 2.0.2)
 WEBUI_PKG="https://github.com/bondagit/aes67-linux-daemon/releases/download/v${PKGVER}/webui.tar.gz"

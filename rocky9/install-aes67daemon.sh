@@ -1,272 +1,263 @@
 #!/usr/bin/env bash
 # Script: install-aes67daemon.sh
 # Author: nikos.toutountzoglou@svt.se
-# Description: AES67 Ravenna Daemon installer for Rocky Linux 9
-# Revision: 1.4
+# Description: AES67 Ravenna Daemon installer for Rocky Linux 9 (release 9.6). Creates a persistent build directory for offline use.
+# Revision: 1.5
 
-# Define color codes
-NC='\033[0m'       # No Color
-INFO='\033[0;32m'  # Green
-WARN='\033[0;33m'  # Yellow
-ERROR='\033[0;31m' # Red
-
-# Function to print info messages
-info() {
-	echo -e "${INFO}[INFO] $1${NC}"
-}
-
-# Function to print warning messages
-warn() {
-	echo -e "${WARN}[WARN] $1${NC}"
-}
-
-# Function to print error messages
-error() {
-	echo -e "${ERROR}[ERROR] $1${NC}"
-}
-
-# Set bash options for robust error handling
 set -euo pipefail
 
-# Variables
-PKGDIR="${HOME}/src/aes67-daemon"
-PKGNAME="aes67-linux-daemon"
-PKGVER="2.0.2"
-AES67_DAEMON_PKG="https://github.com/bondagit/${PKGNAME}/archive/refs/tags/v${PKGVER}.tar.gz"
-AES67_DAEMON_PKG_MD5="5234793f638937eb6c1a99a38dbd55f2"
+# --- Configuration ---
+# AES67 Daemon
+DAEMON_PKGNAME="aes67-linux-daemon"
+DAEMON_PKGVER="2.0.2"
+DAEMON_URL="https://github.com/bondagit/${DAEMON_PKGNAME}/archive/refs/tags/v${DAEMON_PKGVER}.tar.gz"
+DAEMON_MD5="5234793f638937eb6c1a99a38dbd55f2"
 
-# Modules Driver (Ver. 1.14)
-RAVENNA_DRIVER_PKGVER="1.14"
-RAVENNA_DRIVER_PKG="https://github.com/bondagit/ravenna-alsa-lkm/archive/refs/tags/v${RAVENNA_DRIVER_PKGVER}.tar.gz"
-RAVENNA_DRIVER_MD5="a84bb546e60a50284300c4cfa4489d41"
+# Ravenna ALSA Driver Source (Dependency)
+RAVENNA_DRIVER_PKGNAME="ravenna-alsa-lkm"
+RAVENNA_DRIVER_PKGVER="1.15"
+RAVENNA_DRIVER_URL="https://github.com/bondagit/${RAVENNA_DRIVER_PKGNAME}/archive/refs/tags/v${RAVENNA_DRIVER_PKGVER}.tar.gz"
+RAVENNA_DRIVER_MD5="149a9df6c7f5d6a5c01bf5e1b50a26f3"
 
-# Web-UI (Ver. 2.0.2)
-WEBUI_PKG="https://github.com/bondagit/aes67-linux-daemon/releases/download/v${PKGVER}/webui.tar.gz"
-WEBUI_PKG_MD5="a61aa1a1c839ce9cd8f7c4e845f40ae6"
+# WebUI for the Daemon
+WEBUI_URL="https://github.com/bondagit/aes67-linux-daemon/releases/download/v${DAEMON_PKGVER}/webui.tar.gz"
+WEBUI_MD5="a61aa1a1c839ce9cd8f7c4e845f40ae6"
 
-# HTTP-Lib (Git-commit: 07c6e58951931f8c74de8291ff35a3298fe481c4)
-HTTPLIB_PKG="https://github.com/bondagit/cpp-httplib/archive/07c6e58951931f8c74de8291ff35a3298fe481c4.zip"
-HTTPLIB_PKG_MD5="79507658cac131d441f0439a4c218a2d"
+# C++ HTTP Library (Dependency)
+HTTPLIB_URL="https://github.com/bondagit/cpp-httplib/archive/07c6e58951931f8c74de8291ff35a3298fe481c4.zip"
+HTTPLIB_MD5="79507658cac131d441f0439a4c218a2d"
 
-# FAAC source from GitHub
-FAAC_REPO="https://github.com/knik0/faac.git"
-FAAC_DIR="${PKGDIR}/faac"
+# FAAC Codec (Dependency)
+FAAC_REPO_URL="https://github.com/knik0/faac.git"
 
-# Define additional directory variables
-SRC_DIR="${PKGDIR}/${PKGNAME}-${PKGVER}"
-THIRDPARTY_DIR="${SRC_DIR}/3rdparty"
-WEBUI_DIR="${SRC_DIR}/webui"
-DAEMON_DIR="${SRC_DIR}/daemon"
-SYSTEMD_DIR="${SRC_DIR}/systemd"
+# --- Global Variables ---
+WORKDIR=""
 
-function check_distro() {
+# --- Style and Logging ---
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO] $1${NC}"; }
+log_success() { echo -e "${GREEN}[SUCCESS] $1${NC}"; }
+log_warning() { echo -e "${YELLOW}[WARNING] $1${NC}"; }
+log_error() { echo -e "${RED}[ERROR] $1${NC}" >&2; exit 1; }
+
+# --- Helper Functions ---
+
+check_distro() {
     if [[ -f /etc/os-release ]]; then
+        # shellcheck source=/dev/null
         . /etc/os-release
-        [[ "${ID}" == "rocky" && "${VERSION_ID%%.*}" == "9" ]] || log_error "This script supports only Rocky Linux 9."
+        [[ "${ID}" == "rocky" && "${VERSION_ID%%.*}" == "9" ]] || log_error "This script is intended only for Rocky Linux 9."
+        log_info "Rocky Linux 9 distribution confirmed."
     else
-        log_error "Unable to detect Linux distribution."
+        log_error "Unable to detect the Linux distribution."
     fi
 }
 
 prompt_user() {
-	# Prompt user with yes/no before proceeding
-	info "Welcome to AES67 Ravenna Daemon version ${PKGVER} installer script for Rocky Linux 9."
-	while true; do
-		read -r -p "Proceed with installation? (y/n) " yesno
-		case "${yesno}" in
-		[nN]) exit 0 ;;
-		[yY]) break ;;
-		*) warn "Please answer 'y/n'." ;;
-		esac
-	done
+    local prompt_message="$1"
+    while true; do
+        read -r -p "$prompt_message (y/n) " response
+        case "$response" in
+            [Yy]*) return 0;;
+            [Nn]*) return 1;;
+            *) echo "Please answer 'y' or 'n'." ;;
+        esac
+    done
 }
 
-prepare_directory() {
-	# Create a working source dir
-	if [[ -d "${PKGDIR}" ]]; then
-		while true; do
-			warn "Source directory '${PKGDIR}' already exists."
-			read -r -p "Delete it and reinstall? (y/n) " yesno
-			case "${yesno}" in
-			[nN]) exit 0 ;;
-			[yY]) break ;;
-			*) warn "Please answer 'y/n'." ;;
-			esac
-		done
-	fi
-
-	rm -fr "${PKGDIR}"
-	mkdir -v -p "${PKGDIR}"
-	cd "${PKGDIR}"
-}
-
-update_system() {
-	# Update package repos cache
-	info "Updating package repository cache."
-	sudo dnf update -y
-}
+# --- Installation Functions ---
 
 install_dependencies() {
-    # Install all dependencies for building the AES67 Ravenna Daemon package
-    info "Installing all dependencies for the AES67 Ravenna Daemon."
-
-    # Enable EPEL and CRB repositories
+    log_info "Installing build dependencies using sudo..."
     sudo dnf install -y epel-release
-    sudo /usr/bin/crb enable
-
-    # Install development tools
+    sudo crb enable
     sudo dnf groupinstall -y "Development Tools"
-
-    # Install individual dependencies
     sudo dnf install -y \
         glibc mlocate psmisc clang cmake cpp-httplib-devel git npm \
         boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel \
-        avahi-devel autoconf automake libtool linuxptp systemd-devel \
-        kernel-headers-$(uname -r)
+        avahi-devel autoconf automake libtool linuxptp systemd-devel
+    log_success "Dependencies installed."
 }
 
-build_faac_from_source() {
-	# Clone and build FAAC from source
-	info "Cloning and building FAAC from source."
-	git clone "${FAAC_REPO}" "${FAAC_DIR}"
-	cd "${FAAC_DIR}"
-	./bootstrap
-	./configure --prefix=/usr
-	make
-	sudo make install
-	cd "${PKGDIR}"
+build_and_install_faac() {
+    log_info "Cloning and building FAAC audio codec from source..."
+    git clone "${FAAC_REPO_URL}" "faac"
+    cd "faac"
+    ./bootstrap
+    ./configure --prefix=/usr
+    make
+    sudo make install
+    cd ..
+    log_success "FAAC installed."
+    
+    log_info "Updating dynamic linker cache..."
+    sudo ldconfig
 }
 
-update_ldconfig() {
-	# Update ldconfig (Req. glibc, mlocate)
-	info "Updating 'ldconfig' and 'updatedb'."
-	sudo ldconfig
-	sudo updatedb
+download_and_extract() {
+    log_info "Downloading all required source packages..."
+    fetch() {
+        local url="$1"
+        local filename="$2"
+        local md5="$3"
+        log_info "Downloading ${filename}..."
+        curl -#fL -o "${filename}" "${url}"
+        echo "${md5}  ${filename}" | md5sum -c --status || log_error "MD5 checksum failed for ${filename}."
+    }
+
+    fetch "${DAEMON_URL}" "${DAEMON_PKGNAME}-${DAEMON_PKGVER}.tar.gz" "${DAEMON_MD5}"
+    fetch "${RAVENNA_DRIVER_URL}" "${RAVENNA_DRIVER_PKGNAME}-${RAVENNA_DRIVER_PKGVER}.tar.gz" "${RAVENNA_DRIVER_MD5}"
+    fetch "${WEBUI_URL}" "webui.tar.gz" "${WEBUI_MD5}"
+    fetch "${HTTPLIB_URL}" "cpp-httplib.zip" "${HTTPLIB_MD5}"
+
+    log_info "Extracting archives..."
+    tar -zxf "${DAEMON_PKGNAME}-${DAEMON_PKGVER}.tar.gz"
 }
 
-download_sources() {
-	# Download latest driver from upstream source
-	info "Downloading latest driver from upstream source."
-	curl -fSL --output "${PKGNAME}-${PKGVER}.tar.gz" "${AES67_DAEMON_PKG}" || {
-		error "Failed to download AES67 Daemon package."
-		exit 1
-	}
-	echo "${AES67_DAEMON_PKG_MD5} ${PKGNAME}-${PKGVER}.tar.gz" | md5sum -c || exit 1
-	tar -xf "${PKGNAME}-${PKGVER}.tar.gz"
+prepare_source_tree() {
+    local daemon_src_dir="${DAEMON_PKGNAME}-${DAEMON_PKGVER}"
+    local thirdparty_dir="${daemon_src_dir}/3rdparty"
+    
+    log_info "Arranging source tree for the daemon build..."
+    tar -zxf "${RAVENNA_DRIVER_PKGNAME}-${RAVENNA_DRIVER_PKGVER}.tar.gz" -C "${thirdparty_dir}"
+    unzip -q "cpp-httplib.zip" -d "${thirdparty_dir}"
+    mv "${thirdparty_dir}/cpp-httplib-"* "${thirdparty_dir}/cpp-httplib"
+    tar -zxf "webui.tar.gz" -C "${daemon_src_dir}/webui"
+    log_success "Source tree prepared."
+}
 
-	# Cd to sourcedir
-	cd "${SRC_DIR}"
-
-	# Download latest 3rdparty upstream source
-	cd "${THIRDPARTY_DIR}"
-
-	# Cpp-httplib
-	curl -fSL --output "cpp-httplib.zip" "${HTTPLIB_PKG}" || {
-		error "Failed to download cpp-httplib."
-		exit 1
-	}
-	echo "${HTTPLIB_PKG_MD5} cpp-httplib.zip" | md5sum -c || exit 1
-	unzip -q "cpp-httplib.zip"
-	mv cpp-httplib-* cpp-httplib
-	# Move sourcefile to working directory
-	mv "cpp-httplib.zip" "${PKGDIR}"
-
-	# Ravenna-driver-lkm
-	curl -fSL --output "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz" "${RAVENNA_DRIVER_PKG}" || {
-		error "Failed to download Ravenna driver."
-		exit 1
-	}
-	echo "${RAVENNA_DRIVER_MD5} ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz" | md5sum -c || exit 1
-	tar -xf "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz"
-	rm -f "ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}.tar.gz"
-	cd ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}
-	# Fix issue with newer kernels
-	sed -i 's#include <stdarg.h>#include <linux/stdarg.h>#g' driver/MTAL_LKernelAPI.c
-	cd driver
-	make modules
-
-	# Webui
-	cd "${WEBUI_DIR}"
-
-	curl -fSL --output "webui.tar.gz" "${WEBUI_PKG}" || {
-		error "Failed to download webui."
-		exit 1
-	}
-	echo "${WEBUI_PKG_MD5} webui.tar.gz" | md5sum -c || exit 1
-	tar -xf webui.tar.gz
-	npm install --cache "${PKGDIR}/npm-cache"
-	npm run build
-	# Move sourcefile to working directory
-	mv "webui.tar.gz" "${PKGDIR}"
+build_webui() {
+    local webui_dir="${DAEMON_PKGNAME}-${DAEMON_PKGVER}/webui"
+    log_info "Building the WebUI component (this may take a while)..."
+    cd "${webui_dir}"
+    npm install --cache "${WORKDIR}/npm-cache"
+    npm run build
+    cd "${WORKDIR}"
+    log_success "WebUI built successfully."
 }
 
 build_daemon() {
-	# Daemon
-	cd "${DAEMON_DIR}"
+    local daemon_build_dir="${DAEMON_PKGNAME}-${DAEMON_PKGVER}/daemon"
+    local thirdparty_dir_abs="${WORKDIR}/${DAEMON_PKGNAME}-${DAEMON_PKGVER}/3rdparty"
 
-	# Build aes67-daemon
-	cmake -DCPP_HTTPLIB_DIR="${THIRDPARTY_DIR}/cpp-httplib" \
-		-DRAVENNA_ALSA_LKM_DIR="${THIRDPARTY_DIR}/ravenna-alsa-lkm-${RAVENNA_DRIVER_PKGVER}" \
-		-DAVAHI_INCLUDE_DIR=/usr/lib64 \
-		-DENABLE_TESTS=ON \
-		-DWITH_AVAHI=ON \
-		-DFAKE_DRIVER=OFF \
-		-DWITH_SYSTEMD=ON .
-	make
+    log_info "Building the AES67 daemon..."
+    cd "${daemon_build_dir}"
+
+    cmake -DCPP_HTTPLIB_DIR="${thirdparty_dir_abs}/cpp-httplib" \
+          -DRAVENNA_ALSA_LKM_DIR="${thirdparty_dir_abs}/${RAVENNA_DRIVER_PKGNAME}-${RAVENNA_DRIVER_PKGVER}" \
+          -DENABLE_TESTS=OFF -DWITH_AVAHI=ON -DFAKE_DRIVER=OFF -DWITH_SYSTEMD=ON .
+    make
+    cd "${WORKDIR}"
+    log_success "AES67 daemon built successfully."
 }
 
-setup_systemd_service() {
-	# Create systemd service and user
-	while true; do
-		read -r -p "Proceed with creating and enabling systemd service 'aes67-daemon.service' and user 'aes67-daemon'? (y/n) " yesno
-		case "${yesno}" in
-		[nN]) exit 0 ;;
-		[yY]) break ;;
-		*) warn "Please answer 'y/n'." ;;
-		esac
-	done
+install_daemon_service() {
+    local src_dir="${DAEMON_PKGNAME}-${DAEMON_PKGVER}"
 
-	cd "${SYSTEMD_DIR}"
-	# Create a user for the daemon
-	sudo useradd -M -l aes67-daemon -c "AES67 Linux daemon"
-	# Copy the daemon binary (make sure -DWITH_SYSTEMD=ON)
-	sudo cp -v "${DAEMON_DIR}/aes67-daemon" /usr/local/bin/aes67-daemon
-	# Create the daemon webui and script directories
-	sudo install -v -d -o aes67-daemon /var/lib/aes67-daemon /usr/local/share/aes67-daemon/scripts /usr/local/share/aes67-daemon/webui
-	# Copy the ptp script
-	sudo install -v -o aes67-daemon "${DAEMON_DIR}/scripts/ptp_status.sh" /usr/local/share/aes67-daemon/scripts
-	# Copy the webui
-	sudo cp -v -r "${WEBUI_DIR}/dist/"* /usr/local/share/aes67-daemon/webui
-	# Copy daemon configuration and status files
-	sudo install -v -o aes67-daemon status.json daemon.conf /etc
-	# Copy the daemon systemd service definition
-	sudo cp -v aes67-daemon.service /etc/systemd/system
+    if prompt_user "Proceed with installing and enabling the 'aes67-daemon' service?"; then
+        log_info "Installing daemon and systemd service using sudo..."
+        
+        # Check if user exists before trying to create it
+        if ! id -u "aes67-daemon" &>/dev/null; then
+            log_info "Creating system user 'aes67-daemon'..."
+            sudo useradd -M -r -s /sbin/nologin aes67-daemon -c "AES67 Linux daemon"
+        else
+            log_warning "User 'aes67-daemon' already exists, skipping creation."
+        fi
 
-	# Enable the daemon service
-	sudo systemctl enable aes67-daemon
-	sudo systemctl daemon-reexec
+        sudo install -m 755 "${src_dir}/daemon/aes67-daemon" "/usr/local/bin/aes67-daemon"
+        sudo install -d -o aes67-daemon /var/lib/aes67-daemon
+        sudo install -d /usr/local/share/aes67-daemon/scripts
+        sudo install -d /usr/local/share/aes67-daemon/webui
+        sudo install -m 755 "${src_dir}/daemon/scripts/ptp_status.sh" /usr/local/share/aes67-daemon/scripts/
+        sudo cp -r "${src_dir}/webui/dist/"* /usr/local/share/aes67-daemon/webui/
+        sudo install -m 644 -o aes67-daemon "${src_dir}/systemd/status.json" /etc/
+        sudo install -m 644 "${src_dir}/systemd/daemon.conf" /etc/
+        sudo install -m 644 "${src_dir}/systemd/aes67-daemon.service" /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable aes67-daemon.service
+        log_success "Daemon service installed and enabled."
+    else
+        log_warning "Service installation skipped."
+    fi
 }
 
 final_instructions() {
-	# Before starting the daemon edit /etc/daemon.conf and make sure the interface_name parameter is set to your ethernet interface.
-	info "Successfully installed AES67 Daemon. All sources are located in '${PKGDIR}'"
-	info "Make sure to edit the following files:"
-	info "A) /etc/daemon.conf and insert the correct interface_name parameter (i.e. eth0)"
-	info "B) /etc/ptp4l.conf and insert the correct parameters (i.e. [eth0] etc)"
-	info "Please reboot to activate the newly installed daemon."
+    log_success "AES67 Daemon installation process finished."
+    log_warning "ACTION REQUIRED: Before starting the daemon, you must configure it."
+    log_info "1. Edit '/etc/daemon.conf' and set the 'interface_name' to your network interface (e.g., eth0)."
+    log_info "2. Edit '/etc/ptp4l.conf' to match your PTP network configuration."
+    log_info "Once configured, you can start the service with: sudo systemctl start aes67-daemon.service"
+
+    echo
+    log_success "All source and build files have been saved in '${WORKDIR}'."
+    log_info "You can copy this entire directory to an offline machine for installation."
+
+    if prompt_user "Do you want to remove the build directory '${WORKDIR}' now?"; then
+        log_info "Removing build directory..."
+        rm -rf "${WORKDIR}"
+        log_success "Cleanup complete."
+    else
+        log_warning "Build directory has been kept."
+    fi
 }
 
-# Main script execution
-check_distro
-prompt_user
-prepare_directory
-update_system
-install_dependencies
-build_faac_from_source
-update_ldconfig
-download_sources
-build_daemon
-setup_systemd_service
-final_instructions
+# --- Main Execution ---
+
+main() {
+    log_info "AES67 Ravenna Daemon v${DAEMON_PKGVER} Installer for Rocky Linux 9 (9.6, Kernel 5.14)"
+    log_info "This script must be run as a normal user."
+    log_info "It will ask for your password when 'sudo' is needed for system-wide changes."
+    
+    if ! command -v sudo &> /dev/null; then
+        log_error "'sudo' command not found. Please install it."
+    fi
+
+    if [[ "$EUID" -eq 0 ]]; then
+       log_error "This script should NOT be run as root. Run it as a normal user with sudo privileges."
+    fi
+
+    # "Prime" the sudo password prompt.
+    log_info "Please enter your password now if prompted, to grant sudo permissions for the script."
+    sudo -v
+    if [[ $? -ne 0 ]]; then
+      log_error "Could not acquire sudo privileges."
+    fi
+
+    WORKDIR="${HOME}/aes67-daemon-build"
+
+    check_distro
+    log_info "Build files will be stored in: ${WORKDIR}"
+
+    if [[ -d "${WORKDIR}" ]]; then
+        log_warning "The directory '${WORKDIR}' already exists."
+        if ! prompt_user "Do you want to delete it and reinstall?"; then
+            log_warning "Installation cancelled by user."
+            exit 0
+        fi
+        log_info "Removing existing build directory."
+        rm -rf "${WORKDIR}"
+    fi
+
+    mkdir -p "${WORKDIR}"
+    cd "${WORKDIR}"
+    
+    # Core installation steps
+    install_dependencies
+    build_and_install_faac
+    download_and_extract
+    prepare_source_tree
+    build_webui
+    build_daemon
+    install_daemon_service
+    final_instructions
+}
+
+main "$@"
 
 exit 0

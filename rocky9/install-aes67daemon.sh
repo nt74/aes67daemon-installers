@@ -9,9 +9,9 @@ set -euo pipefail
 # --- Configuration ---
 # AES67 Daemon
 DAEMON_PKGNAME="aes67-linux-daemon"
-DAEMON_PKGVER="2.0.2"
+DAEMON_PKGVER="2.1.0"
 DAEMON_URL="https://github.com/bondagit/${DAEMON_PKGNAME}/archive/refs/tags/v${DAEMON_PKGVER}.tar.gz"
-DAEMON_MD5="5234793f638937eb6c1a99a38dbd55f2"
+DAEMON_MD5="ecd0556f6ef700e1c2288108ac431268"
 
 # Ravenna ALSA Driver Source (Dependency)
 RAVENNA_DRIVER_PKGNAME="ravenna-alsa-lkm"
@@ -20,7 +20,8 @@ RAVENNA_DRIVER_URL="https://github.com/bondagit/${RAVENNA_DRIVER_PKGNAME}/archiv
 RAVENNA_DRIVER_MD5="149a9df6c7f5d6a5c01bf5e1b50a26f3"
 
 # WebUI for the Daemon
-WEBUI_URL="https://github.com/bondagit/aes67-linux-daemon/releases/download/v${DAEMON_PKGVER}/webui.tar.gz"
+# Note: The WebUI release is still tied to the v2.0.2 daemon release tag.
+WEBUI_URL="https://github.com/bondagit/aes67-linux-daemon/releases/download/v2.0.2/webui.tar.gz"
 WEBUI_MD5="a61aa1a1c839ce9cd8f7c4e845f40ae6"
 
 # C++ HTTP Library (Dependency)
@@ -77,10 +78,28 @@ install_dependencies() {
     sudo dnf install -y epel-release
     sudo crb enable
     sudo dnf groupinstall -y "Development Tools"
+    
+    # Install other dependencies
     sudo dnf install -y \
-        glibc mlocate psmisc clang cmake cpp-httplib-devel git npm \
+        glibc mlocate psmisc clang cmake cpp-httplib-devel git \
         boost-devel valgrind alsa-lib alsa-lib-devel pulseaudio-libs-devel \
         avahi-devel autoconf automake libtool linuxptp systemd-devel
+
+    # The WebUI build process requires a modern version of Node.js.
+    # The default Node.js in Rocky 9 is too old.
+    log_info "Setting up repository for a modern version of Node.js..."
+    # This command downloads and executes the NodeSource setup script for Node.js 20.x (LTS)
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+    
+    log_info "Removing conflicting system npm package..."
+    # Explicitly remove the old npm package to prevent file conflicts.
+    # The new nodejs package from NodeSource includes its own npm.
+    sudo dnf remove -y npm
+
+    log_info "Installing Node.js (and removing conflicting old versions)..."
+    # Use --allowerasing to resolve conflicts with the system's default nodejs v16 package.
+    sudo dnf install -y --allowerasing nodejs
+
     log_success "Dependencies installed."
 }
 
